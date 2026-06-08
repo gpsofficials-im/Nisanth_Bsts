@@ -1,0 +1,84 @@
+{
+  "anniversaryDate": "2023-07-03T10:33",
+  "birthdays": {
+    "Gokul": "01-08",
+    "Nivetha": "12-02",
+    "BestiesDay": "06-08",
+    "AnniversaryDay": "07-03"
+  },
+  "storageSetting": "local",
+  "localPath": "f:\\JOEE😉(●'◡'●)",
+  "megaEmail": "nisanthbsts143@gmail.com",
+  "megaPassword": "Gokul@709",
+  "megaSyncInterval": 300000,
+  "mega1Enabled": true,
+  "mega1Email": "nisanthbsts143@gmail.com",
+  "mega1Password": "Gokul@709",
+  "mega2Enabled": false,
+  "mega2Email": "",
+  "mega2Password": "",
+  "mega3Enabled": false,
+  "mega3Email": "",
+  "mega3Password": "",
+  "smtpHost": "smtp.gmail.com",
+  "smtpPort": 587,
+  "smtpUser": "",
+  "smtpPass": "",
+  "notificationSettings": {
+    "loginAlerts": true,
+    "anniversaryReminders": true,
+    "birthdayReminders": true,
+    "uploadSuccess": true,
+    "profileUpdates": true
+  },
+  "authorizedUsers": [
+    {
+      "name": "Gokul",
+      "email": "prasanthgokul736@gmail.com",
+      "phone": "+917094610210",
+      "password": "$2b$10$ZTlsqdu5BnuYzlT7LFGn4.KAWBqXLZOibCn1SXvzbRN98RtKrm6JC",
+      "role": "owner",
+      "bio": "Gokul - The coding wizard and founder of our Besties Vault.",
+      "relationshipStory": "Started as classroom benchmates, bonding over music and programming. Now sharing a lifelong bond of friendship!",
+      "avatar": "",
+      "permissions": {
+        "canUpload": true,
+        "canDelete": true,
+        "canEditTimeline": true
+      }
+    },
+    {
+      "name": "Nivetha",
+      "email": "nivethanivetha2109@gmail.com",
+      "phone": "+916380431813",
+      "password": "$2b$10$Fx6CPRjeCOIqK8.WZr6hN.zf.gvx9YYqKmB1JElVtYUuLaAPrzUnq",
+      "role": "secondary",
+      "bio": "Nivetha - The creative mind and ultimate guardian of our memories.",
+      "relationshipStory": "Bonded over coffee talks, life theories, and late-night rants. The ultimate best friend anyone could ever ask for!",
+      "avatar": "",
+      "permissions": {
+        "canUpload": true,
+        "canDelete": true,
+        "canEditTimeline": true
+      }
+    }
+  ],
+  "geminiApiKey": "",
+  "sandboxMode": true,
+  "quotes": [
+    "Private memories deserve a private universe.",
+    "Two souls. One secure vault.",
+    "Moments stay forever inside Nishanth Wallet.",
+    "Securing our shared digital lifetime, second by second.",
+    "Every screenshot, every laughter, preserved in neon glass."
+  ],
+  "degooEnabled": true,
+  "degooAccessToken": "degoo_secured_token_oauth_2026",
+  "megaEnabled": true,
+  "googlePhotosEnabled": true,
+  "googleAccessToken": "google_photos_simulated_token_2026",
+  "googleUniqueId": "108089563239704715919",
+  "googleClientId": "YOUR_CLIENT_ID",
+  "googleClientSecret": "YOUR_CLIENT_SECRET",
+  "googleProjectId": "nisanth-bsts"
+}
