@@ -5,7 +5,7 @@ import { Lock, Mail, ArrowRight, ShieldAlert, Sparkles, Eye, EyeOff } from 'luci
 import { motion } from 'framer-motion';
 
 export default function Auth() {
-  const { login, error } = useAuth();
+  const { login, error, enterOfflineSandbox } = useAuth();
   const { showToast } = useStorage();
   
   const [email, setEmail] = useState('');
@@ -103,9 +103,32 @@ export default function Auth() {
 
             {/* Error notifications */}
             {error && (
-              <div className="flex items-center gap-2.5 p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl text-xs font-semibold">
-                <ShieldAlert className="w-4.5 h-4.5 shrink-0" />
-                <span>{error}</span>
+              <div className="flex flex-col gap-2 p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl text-xs font-semibold">
+                <div className="flex items-center gap-2.5">
+                  <ShieldAlert className="w-4.5 h-4.5 shrink-0" />
+                  <span>{error}</span>
+                </div>
+                {error.includes('Server connection error') && (
+                  <div className="mt-2 pt-2 border-t border-rose-500/20 flex flex-col gap-2">
+                    <p className="text-[10px] text-slate-400">The backend server is offline. You can explore the vault in Sandbox Mode:</p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => enterOfflineSandbox('owner')}
+                        className="flex-1 py-1.5 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/30 rounded-lg text-[10px] font-bold cursor-pointer transition-all"
+                      >
+                        Enter as Gokul
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => enterOfflineSandbox('secondary')}
+                        className="flex-1 py-1.5 bg-pink-600/30 hover:bg-pink-600/50 text-pink-200 border border-pink-500/30 rounded-lg text-[10px] font-bold cursor-pointer transition-all"
+                      >
+                        Enter as Nivetha
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -126,7 +149,28 @@ export default function Auth() {
             </button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-white/5 text-center text-xs text-slate-600 font-bold tracking-wide uppercase">
+          {/* Sandbox Bypass Panel */}
+          <div className="mt-6 pt-5 border-t border-white/5 flex flex-col items-center gap-3">
+            <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-widest">Developer Sandbox Mode</span>
+            <div className="flex gap-3 w-full">
+              <button
+                type="button"
+                onClick={() => enterOfflineSandbox('owner')}
+                className="flex-1 py-2.5 px-3 bg-slate-950/60 hover:bg-slate-950 text-indigo-300 border border-white/5 hover:border-indigo-500/20 rounded-xl text-[10px] font-bold cursor-pointer transition-all flex items-center justify-center gap-1 shadow-sm active:scale-95"
+              >
+                <span>💻 Gokul Sandbox</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => enterOfflineSandbox('secondary')}
+                className="flex-1 py-2.5 px-3 bg-slate-950/60 hover:bg-slate-950 text-pink-300 border border-white/5 hover:border-pink-500/20 rounded-xl text-[10px] font-bold cursor-pointer transition-all flex items-center justify-center gap-1 shadow-sm active:scale-95"
+              >
+                <span>🎨 Nivetha Sandbox</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-5 border-t border-white/5 text-center text-xs text-slate-600 font-bold tracking-wide uppercase">
             🛡️ Authorized secure platform. No Signup available.
           </div>
         </div>
