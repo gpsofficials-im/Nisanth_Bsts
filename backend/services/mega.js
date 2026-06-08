@@ -50,6 +50,11 @@ export async function getMegaStorage(email, password) {
       keepalive: true
     });
     
+    // Catch internal SDK error events to prevent uncaught exception crashes
+    storage.on('error', (err) => {
+      console.warn('[MEGA SDK Internal Error]:', err.message);
+    });
+    
     await new Promise((resolve, reject) => {
       storage.ready.then(resolve).catch(reject);
       setTimeout(() => reject(new Error('MEGA Connection Timeout')), 10000);
