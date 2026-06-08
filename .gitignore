@@ -1,0 +1,47 @@
+# --- Nisanth Wallet Git Ignore Config ---
+
+# Dependency directories
+node_modules/
+jspm_packages/
+web_modules/
+
+# Production builds
+dist/
+dist-ssr/
+build/
+out/
+.next/
+
+# Local Environment Variables and Security Keys
+.env
+backend/data/config.json
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+*.key
+firebase-key.json
+
+# Private Memory Storage (Shield private photos, videos & local storage)
+storage/*
+!storage/.gitkeep
+backend/storage/*
+
+# WebSocket Chat logs & Excel activity audits
+backend/data/chat.json
+backend/data/activity_log.xlsx
+firebase-debug.log
+*.log
+
+# Editor & System Files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
+desktop.ini
