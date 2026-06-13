@@ -405,8 +405,12 @@ app.post('/api/auth/verify-otp', loginLimiter, async (req, res) => {
     }
 
     // Check OTP value
-    const isOtpValid = bcrypt.compareSync(otp, decoded.hashedOtp);
+    const cleanOtp = String(otp).trim();
+    console.log(`[Auth Debug] Verifying OTP for ${decoded.name}. Entered OTP: "${cleanOtp}"`);
+    
+    const isOtpValid = bcrypt.compareSync(cleanOtp, decoded.hashedOtp);
     if (!isOtpValid) {
+      console.warn(`[Auth Warning] Incorrect OTP code entered for ${decoded.name}`);
       return res.status(403).json({ error: 'Incorrect OTP code. Please try again.' });
     }
 
