@@ -320,7 +320,8 @@ const loginLimiter = rateLimit({
 
 // Phase 1: Login & Send OTP Handler
 const handleLoginRequest = async (req, res) => {
-  const { identifier, password } = req.body;
+  const identifier = req.body.identifier || req.body.email || req.body.mobile;
+  const password = req.body.password;
   const config = readJsonFile(CONFIG_PATH);
   
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
