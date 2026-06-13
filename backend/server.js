@@ -270,7 +270,7 @@ const broadcastSseEvent = (data) => {
 // --- MULTI-CLOUD STORAGE WALLET SYSTEM ACTIVATED ---
 // Filesystem watchers disabled. All data syncs live and streams directly to cloud providers.
 
-// --- AUTH ROUTER WITH SMTP OTP, RATE LIMITS, BCRYPT, AND JWT ---
+// --- BRAND-NEW PREDEFINED SECURE AUTH SYSTEM ("Nisanth Besties") ---
 
 // JWT Verification Middleware
 const authenticateToken = (req, res, next) => {
@@ -313,207 +313,140 @@ app.get('/api/auth/verify', authenticateToken, (req, res) => {
 });
 
 const loginLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 100, // relaxed limit for local/developer testing
-  message: { error: 'Too many login attempts. Please try again after 10 minutes.' }
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 50,
+  message: { error: 'Too many requests. Please try again after 5 minutes.' }
 });
 
-
-app.post('/api/auth/login', loginLimiter, async (req, res) => {
-  const { email, password } = req.body;
+// Phase 1: Login & Send OTP Handler
+const handleLoginRequest = async (req, res) => {
+  const { identifier, password } = req.body;
   const config = readJsonFile(CONFIG_PATH);
   
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
-  const userAgent = req.headers['user-agent'] || 'Unknown Browser';
 
-  console.log(`[Auth] Attempting login process for email: ${email}`);
-
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required.' });
+  if (!identifier || !password) {
+    return res.status(400).json({ error: 'Email/Mobile and Password are required.' });
   }
 
-  // Email format validation
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    return res.status(400).json({ error: 'Invalid email format entered.' });
-  }
+  const normalizedIdentifier = identifier.trim().toLowerCase();
+  const rawMobileDigits = identifier.replace(/\D/g, '');
 
-  // Find authorized user
-  const matchedUser = config.authorizedUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+  // Find Gokul or Nivetha by email or mobile digits
+  const matchedUser = config.authorizedUsers.find(u => {
+    const emailMatch = u.email.toLowerCase() === normalizedIdentifier;
+    const storedMobileDigits = (u.mobile || u.phone || '').replace(/\D/g, '');
+    const mobileMatch = rawMobileDigits.length >= 10 && (storedMobileDigits.endsWith(rawMobileDigits) || rawMobileDigits.endsWith(storedMobileDigits));
+    return emailMatch || mobileMatch;
+  });
 
   if (!matchedUser) {
-    console.warn(`[Auth] Blocked unauthorized login attempt for email: ${email}`);
-    logActivity('Guest', 'Login Attempt', `Blocked unauthorized login for ${email}`, 'Access Denied', ip);
-    return res.status(403).json({ error: 'Access Denied – Invalid account.' });
+    console.warn(`[Auth] Rejected invalid credentials for identifier: ${identifier}`);
+    return res.status(403).json({ error: 'Access Denied – Invalid credentials.' });
   }
 
   // Password checks
   const isPassValid = bcrypt.compareSync(password, matchedUser.password);
   if (!isPassValid) {
-    console.warn(`[Auth] Failed password verification for user: ${matchedUser.name}`);
-    logActivity(matchedUser.name, 'Login Attempt', 'Failed password verification', 'Access Denied', ip);
+    console.warn(`[Auth] Rejected incorrect password for user: ${matchedUser.name}`);
     return res.status(403).json({ error: 'Access Denied – Incorrect password.' });
   }
 
-  // Validation complete! Sign a secure JWT session token immediately
-  const token = jwt.sign(
-    { name: matchedUser.name, role: matchedUser.role, email: matchedUser.email },
-    JWT_SECRET,
-    { expiresIn: '7d' }
-  );
+  // Generate secure 6-digit OTP
+  const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
 
-  // Log successful login
-  logActivity(matchedUser.name, 'Login', `Successfully logged in`, 'Success', ip);
-  
-  // Trigger security alert email notification
+  // Send OTP via SMTP to email only
   try {
-    const istTime = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
     await sendEmail(
       matchedUser.email,
-      'Nisanth Wallet: New Login Alert',
-      getLoginAlertTemplate(matchedUser.name, istTime, ip, userAgent)
+      'Nisanth Besties: Secure Login OTP Code',
+      getOTPTemplate(matchedUser.name, generatedOtp, 5)
     );
-  } catch (e) {
-    console.error('[Auth] Login Alert email failed:', e.message);
+    console.log(`[Auth] Verification OTP successfully sent to ${matchedUser.email}`);
+  } catch (error) {
+    console.error('[Auth] SMTP OTP delivery failed:', error.message);
+    return res.status(500).json({ error: 'Failed to send OTP via SMTP mailer. Check server connection.' });
   }
+
+  // Create temporary JWT holding the hashed OTP, valid for 5 minutes
+  const hashedOtp = bcrypt.hashSync(generatedOtp, 10);
+  const tempToken = jwt.sign(
+    { name: matchedUser.name, role: matchedUser.role, purpose: 'otp_verification', hashedOtp },
+    JWT_SECRET,
+    { expiresIn: '5m' }
+  );
 
   return res.status(200).json({
     success: true,
-    token,
-    user: {
-      name: matchedUser.name,
-      email: matchedUser.email,
-      phone: matchedUser.phone,
-      role: matchedUser.role,
-      bio: matchedUser.bio,
-      relationshipStory: matchedUser.relationshipStory,
-      avatar: matchedUser.avatar,
-      permissions: matchedUser.permissions || { canUpload: true, canDelete: true, canEditTimeline: true }
-    }
+    otpRequired: true,
+    tempToken,
+    message: 'A secure 6-digit OTP has been sent to your registered email address.'
   });
-});
+};
 
+app.post('/api/auth/login', loginLimiter, handleLoginRequest);
+app.post('/api/auth/send-otp', loginLimiter, handleLoginRequest);
 
+// Phase 2: Verify OTP Handler
+app.post('/api/auth/verify-otp', loginLimiter, async (req, res) => {
+  const { tempToken, otp } = req.body;
 
-// --- GOOGLE OAUTH AUTOMATED CALLBACK EXCHANGE ROUTER ---
-app.get('/api/auth/google/callback', async (req, res) => {
-  const { code } = req.query;
-  if (!code) {
-    return res.status(400).send('<h1>OAuth Error</h1><p>Missing authorization code from Google.</p>');
+  if (!tempToken || !otp) {
+    return res.status(400).json({ error: 'Verification session and OTP code are required.' });
   }
 
   try {
+    // Verify signature & expiration
+    const decoded = jwt.verify(tempToken, JWT_SECRET);
+
+    if (decoded.purpose !== 'otp_verification') {
+      return res.status(403).json({ error: 'Invalid verification token.' });
+    }
+
+    // Check OTP value
+    const isOtpValid = bcrypt.compareSync(otp, decoded.hashedOtp);
+    if (!isOtpValid) {
+      return res.status(403).json({ error: 'Incorrect OTP code. Please try again.' });
+    }
+
+    // Retrieve user profile
     const config = readJsonFile(CONFIG_PATH);
-    const clientId = config.googleClientId || process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = config.googleClientSecret || process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = 'http://localhost:5000/api/auth/google/callback';
+    const matchedUser = config.authorizedUsers.find(u => u.name === decoded.name);
 
-    console.log('[Google OAuth] Exchanging auth code for tokens...');
-    
-    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri,
-        grant_type: 'authorization_code'
-      })
-    });
-
-    const tokenData = await tokenRes.json();
-    
-    if (!tokenRes.ok) {
-      throw new Error(tokenData.error_description || tokenData.error || 'Failed to exchange token');
+    if (!matchedUser) {
+      return res.status(404).json({ error: 'User profile no longer exists.' });
     }
 
-    const { access_token, refresh_token } = tokenData;
+    // Issue 7-day session token
+    const token = jwt.sign(
+      { name: matchedUser.name, role: matchedUser.role, email: matchedUser.email },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
-    // Update config.json and Mongoose DB
-    config.googlePhotosEnabled = true;
-    config.googleAccessToken = access_token;
-    if (refresh_token) {
-      config.googleRefreshToken = refresh_token;
-    }
-    writeJsonFile(CONFIG_PATH, config);
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    logActivity(matchedUser.name, 'Login', `Logged in via SMTP OTP verification`, 'Success', ip);
 
-    // Also update Mongoose CloudAccount
-    await updateCloudConfig({
-      googlePhotosEnabled: true,
-      googleAccessToken: access_token
+    return res.status(200).json({
+      success: true,
+      token,
+      user: {
+        name: matchedUser.name,
+        email: matchedUser.email,
+        phone: matchedUser.phone,
+        role: matchedUser.role,
+        bio: matchedUser.bio,
+        relationshipStory: matchedUser.relationshipStory,
+        avatar: matchedUser.avatar,
+        permissions: matchedUser.permissions || { canUpload: true, canDelete: true, canEditTimeline: true }
+      }
     });
-
-    res.setHeader('Content-Type', 'text/html');
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Google Photos Connected!</title>
-        <style>
-          body {
-            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
-            color: #f1f5f9;
-            font-family: system-ui, -apple-system, sans-serif;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-            overflow: hidden;
-          }
-          .card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(16px);
-            padding: 2.5rem;
-            border-radius: 1.5rem;
-            text-align: center;
-            max-width: 450px;
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
-            border: 1px solid rgba(255,255,255,0.1);
-          }
-          h1 {
-            color: #38bdf8;
-            font-size: 1.75rem;
-            margin-bottom: 0.5rem;
-          }
-          p {
-            color: #94a3b8;
-            font-size: 0.875rem;
-            line-height: 1.5;
-            margin-bottom: 2rem;
-          }
-          .btn {
-            display: inline-block;
-            background: linear-gradient(90deg, #0284c7, #4f46e5);
-            color: white;
-            padding: 0.75rem 2rem;
-            border-radius: 9999px;
-            text-decoration: none;
-            font-size: 0.875rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-            transition: all 0.2s;
-          }
-          .btn:hover {
-            transform: scale(1.03);
-          }
-        </style>
-      </head>
-      <body>
-        <div class="card">
-          <h1>✨ Google Photos Connected! 🔒</h1>
-          <p>Your Google Photos account has been successfully authenticated. The access tokens have been safely saved to your secure cloud wallet system!</p>
-          <a href="http://localhost:5173/cloud" class="btn">Return to Control Panel</a>
-        </div>
-      </body>
-      </html>
-    `);
 
   } catch (error) {
-    console.error('[Google OAuth Callback Error]:', error.message);
-    res.status(500).send(`<h1>OAuth Callback Error</h1><p>${error.message}</p>`);
+    if (error.name === 'TokenExpiredError') {
+      return res.status(403).json({ error: 'Verification session expired. Please request a new OTP.' });
+    }
+    return res.status(403).json({ error: 'Invalid or expired verification session.' });
   }
 });
 

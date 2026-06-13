@@ -34,23 +34,25 @@ const resolveSmtpHost = async (host) => {
 
 // Top-level nodemailer transporter configured with Gmail
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  requireTLS: true,
+  host: process.env.SMTP_HOST || "smtp.gmail.com",
+  port: parseInt(process.env.SMTP_PORT) || 587,
+  secure: false, // false for 587 (STARTTLS)
   auth: {
-    user: process.env.EMAIL_USER || process.env.SMTP_USER,
-    pass: process.env.EMAIL_PASS || process.env.SMTP_PASS,
+    user: process.env.SMTP_USER || "nisanthbsts143@gmail.com",
+    pass: process.env.SMTP_PASS || "tnqv jkaa vrxi nhje",
   },
-  connectionTimeout: 10000,
+  connectionTimeout: 15000,
+  tls: {
+    rejectUnauthorized: false
+  }
 });
 
 
 transporter.verify((err, success) => {
   if (err) {
-    console.log("SMTP Error:", err);
+    console.warn("SMTP Transporter Connection Error:", err.message);
   } else {
-    console.log("SMTP Connected");
+    console.log("SMTP Connected Successfully to Gmail!");
   }
 });
 
@@ -64,9 +66,9 @@ transporter.verify((err, success) => {
  */
 export async function sendEmail(to, subject, htmlContent) {
   try {
-    const fromAddress = process.env.EMAIL_USER || process.env.SMTP_USER;
+    const fromAddress = process.env.SMTP_USER || "nisanthbsts143@gmail.com";
     const info = await transporter.sendMail({
-      from: `"Nisanth Wallet" <${fromAddress}>`,
+      from: `"Nisanth Besties" <${fromAddress}>`,
       to,
       subject,
       html: htmlContent,
