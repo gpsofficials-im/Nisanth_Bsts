@@ -18,7 +18,7 @@ import { connectDB } from './config/db.js';
 import MediaItem from './models/MediaItem.js';
 import ActivityLog from './models/ActivityLog.js';
 import { logActivity, getActivities } from './logger.js';
-import { sendEmail, getLoginAlertTemplate, getOTPTemplate, getUploadSuccessTemplate, getReminderTemplate, getProfileUpdateTemplate } from './mailer.js';
+import { sendEmail, getLoginAlertTemplate, getUploadSuccessTemplate, getReminderTemplate, getProfileUpdateTemplate } from './mailer.js';
 import { getCloudConfig, updateCloudConfig, uploadToActiveClouds, fetchActiveCloudMedia } from './services/cloudManager.js';
 import { getMegaAccountInfo } from './services/mega.js';
 import { syncClouds } from './services/syncService.js';
@@ -318,7 +318,7 @@ const loginLimiter = rateLimit({
   message: { error: 'Too many requests. Please try again after 5 minutes.' }
 });
 
-// Phase 1: Login & Send OTP Handler
+// Direct Password Login Handler
 const handleLoginRequest = async (req, res) => {
   const identifier = req.body.identifier || req.body.email || req.body.mobile;
   const password = req.body.password;
@@ -353,107 +353,33 @@ const handleLoginRequest = async (req, res) => {
     return res.status(403).json({ error: 'Access Denied – Incorrect password.' });
   }
 
-  // Generate secure 6-digit OTP
-  const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-
-  // Send OTP via SMTP to email only
-  try {
-    await sendEmail(
-      matchedUser.email,
-      'Nisanth Besties: Secure Login OTP Code',
-      getOTPTemplate(matchedUser.name, generatedOtp, 5)
-    );
-    console.log(`[Auth] Verification OTP successfully sent to ${matchedUser.email}`);
-  } catch (error) {
-    console.error('[Auth] SMTP OTP delivery failed:', error.message);
-    return res.status(500).json({ error: 'Failed to send OTP via SMTP mailer. Check server connection.' });
-  }
-
-  // Create temporary JWT holding the hashed OTP, valid for 5 minutes
-  const hashedOtp = bcrypt.hashSync(generatedOtp, 10);
-  const tempToken = jwt.sign(
-    { name: matchedUser.name, role: matchedUser.role, purpose: 'otp_verification', hashedOtp },
+  // Validation complete! Sign a secure JWT session token immediately (7 days)
+  const token = jwt.sign(
+    { name: matchedUser.name, role: matchedUser.role, email: matchedUser.email },
     JWT_SECRET,
-    { expiresIn: '5m' }
+    { expiresIn: '7d' }
   );
+
+  // Log successful login
+  logActivity(matchedUser.name, 'Login', `Successfully logged in`, 'Success', ip);
 
   return res.status(200).json({
     success: true,
-    otpRequired: true,
-    tempToken,
-    message: 'A secure 6-digit OTP has been sent to your registered email address.'
+    token,
+    user: {
+      name: matchedUser.name,
+      email: matchedUser.email,
+      phone: matchedUser.phone,
+      role: matchedUser.role,
+      bio: matchedUser.bio,
+      relationshipStory: matchedUser.relationshipStory,
+      avatar: matchedUser.avatar,
+      permissions: matchedUser.permissions || { canUpload: true, canDelete: true, canEditTimeline: true }
+    }
   });
 };
 
 app.post('/api/auth/login', loginLimiter, handleLoginRequest);
-app.post('/api/auth/send-otp', loginLimiter, handleLoginRequest);
-
-// Phase 2: Verify OTP Handler
-app.post('/api/auth/verify-otp', loginLimiter, async (req, res) => {
-  const { tempToken, otp } = req.body;
-
-  if (!tempToken || !otp) {
-    return res.status(400).json({ error: 'Verification session and OTP code are required.' });
-  }
-
-  try {
-    // Verify signature & expiration
-    const decoded = jwt.verify(tempToken, JWT_SECRET);
-
-    if (decoded.purpose !== 'otp_verification') {
-      return res.status(403).json({ error: 'Invalid verification token.' });
-    }
-
-    // Check OTP value
-    const cleanOtp = String(otp).trim();
-    console.log(`[Auth Debug] Verifying OTP for ${decoded.name}. Entered OTP: "${cleanOtp}"`);
-    
-    const isOtpValid = bcrypt.compareSync(cleanOtp, decoded.hashedOtp);
-    if (!isOtpValid) {
-      console.warn(`[Auth Warning] Incorrect OTP code entered for ${decoded.name}`);
-      return res.status(403).json({ error: 'Incorrect OTP code. Please try again.' });
-    }
-
-    // Retrieve user profile
-    const config = readJsonFile(CONFIG_PATH);
-    const matchedUser = config.authorizedUsers.find(u => u.name === decoded.name);
-
-    if (!matchedUser) {
-      return res.status(404).json({ error: 'User profile no longer exists.' });
-    }
-
-    // Issue 7-day session token
-    const token = jwt.sign(
-      { name: matchedUser.name, role: matchedUser.role, email: matchedUser.email },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
-    logActivity(matchedUser.name, 'Login', `Logged in via SMTP OTP verification`, 'Success', ip);
-
-    return res.status(200).json({
-      success: true,
-      token,
-      user: {
-        name: matchedUser.name,
-        email: matchedUser.email,
-        phone: matchedUser.phone,
-        role: matchedUser.role,
-        bio: matchedUser.bio,
-        relationshipStory: matchedUser.relationshipStory,
-        avatar: matchedUser.avatar,
-        permissions: matchedUser.permissions || { canUpload: true, canDelete: true, canEditTimeline: true }
-      }
-    });
-
-  } catch (error) {
-    if (error.name === 'TokenExpiredError') {
-      return res.status(403).json({ error: 'Verification session expired. Please request a new OTP.' });
-    }
-    return res.status(403).json({ error: 'Invalid or expired verification session.' });
-  }
-});
 
 // --- CLOUD AGGREGATOR ROUTER ---
 app.get('/api/cloud/files', authenticateToken, async (req, res) => {

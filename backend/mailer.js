@@ -32,52 +32,22 @@ const resolveSmtpHost = async (host) => {
   }
 };
 
-// Top-level nodemailer transporter configured with Gmail
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: parseInt(process.env.SMTP_PORT) || 587,
-  secure: false, // false for 587 (STARTTLS)
-  auth: {
-    user: process.env.SMTP_USER || "nisanthbsts143@gmail.com",
-    pass: process.env.SMTP_PASS || "tnqv jkaa vrxi nhje",
-  },
-  connectionTimeout: 15000,
-  tls: {
-    rejectUnauthorized: false
-  }
-});
-
-
-transporter.verify((err, success) => {
-  if (err) {
-    console.warn("SMTP Transporter Connection Error:", err.message);
-  } else {
-    console.log("SMTP Connected Successfully to Gmail!");
-  }
-});
-
-
+// Top-level nodemailer transporter disabled (SMTP removed by user request)
+const transporter = null;
 
 /**
- * Send an email using standard templates
+ * Send a simulated email (SMTP integration has been removed)
  * @param {string} to - Recipient email
  * @param {string} subject - Email subject
  * @param {string} htmlContent - HTML formatted message
  */
 export async function sendEmail(to, subject, htmlContent) {
   try {
-    const fromAddress = process.env.SMTP_USER || "nisanthbsts143@gmail.com";
-    const info = await transporter.sendMail({
-      from: `"Nisanth Besties" <${fromAddress}>`,
-      to,
-      subject,
-      html: htmlContent,
-      text: htmlContent.replace(/<[^>]*>/g, '\n').replace(/\n\s*\n/g, '\n'),
-    });
-    console.log(`[Mailer] Mail sent successfully! MessageID: ${info.messageId}`);
-    return { simulated: false, success: true, messageId: info.messageId };
+    console.log(`[Mailer - SMTP Removed] Simulated email sent to: ${to}`);
+    console.log(`Subject: ${subject}`);
+    return { simulated: true, success: true, messageId: 'simulated-msg-id-' + Date.now() };
   } catch (error) {
-    console.error('[Mailer] Failed to send email via SMTP:', error);
+    console.error('[Mailer] Failed to log simulated email:', error);
     throw error;
   }
 }

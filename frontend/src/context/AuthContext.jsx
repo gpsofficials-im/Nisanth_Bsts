@@ -61,52 +61,6 @@ export function AuthProvider({ children }) {
         throw new Error(data.error || 'Authentication failed');
       }
 
-      if (data.otpRequired) {
-        return { success: true, otpRequired: true, tempToken: data.tempToken };
-      }
-    } catch (err) {
-      setError(err.message || 'Server connection error');
-      throw err;
-    }
-  };
-
-  const sendOtp = async (loginData) => {
-    setError(null);
-    try {
-      const response = await fetch(`${API_URL}/api/auth/send-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(loginData)
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to send OTP');
-      }
-
-      return { success: true, otpRequired: true, tempToken: data.tempToken };
-    } catch (err) {
-      setError(err.message || 'Server connection error');
-      throw err;
-    }
-  };
-
-  const verifyOtp = async (tempToken, otp) => {
-    setError(null);
-    try {
-      const response = await fetch(`${API_URL}/api/auth/verify-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tempToken, otp })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'OTP verification failed');
-      }
-
       if (data.success && data.user) {
         setUser(data.user);
         setToken(data.token);
@@ -133,7 +87,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, error, login, sendOtp, verifyOtp, logout, updateProfileLocal }}>
+    <AuthContext.Provider value={{ user, token, loading, error, login, logout, updateProfileLocal }}>
       {children}
     </AuthContext.Provider>
   );
